@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/tution_class.dart';
 import 'add_class_screen.dart';
+import 'fees_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +19,28 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
+
+    // Navigate to fees screen when fees tab is tapped
+    if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FeesScreen(
+            classes: classes,
+            onNavigate: (index) {
+              setState(() {
+                _selectedIndex = index;
+              });
+            },
+          ),
+        ),
+      ).then((_) {
+        // Reset to home tab when returning
+        setState(() {
+          _selectedIndex = 0;
+        });
+      });
+    }
   }
 
   void _navigateToAddClass() async {
@@ -366,7 +389,7 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 0.85,
+        childAspectRatio: 0.75,
       ),
       itemCount: classes.length,
       itemBuilder: (context, index) => _classCard(classes[index]),
@@ -376,6 +399,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // Class Card (improved design)
   Widget _classCard(TutionClass tClass) {
     return Container(
+      width: double.infinity,
+      height: 200,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
