@@ -24,13 +24,15 @@ class TutionClassAdapter extends TypeAdapter<TutionClass> {
       startTime: fields[4] as String,
       durationHours: fields[5] as int,
       monthlyFee: fields[6] as double,
+      createdDate: fields[7] as DateTime,
+      id: fields[8] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, TutionClass obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.subject)
       ..writeByte(1)
@@ -44,7 +46,11 @@ class TutionClassAdapter extends TypeAdapter<TutionClass> {
       ..writeByte(5)
       ..write(obj.durationHours)
       ..writeByte(6)
-      ..write(obj.monthlyFee);
+      ..write(obj.monthlyFee)
+      ..writeByte(7)
+      ..write(obj.createdDate)
+      ..writeByte(8)
+      ..write(obj.id);
   }
 
   @override

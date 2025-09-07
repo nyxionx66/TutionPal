@@ -9,6 +9,18 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
   bool get isLoggedIn => _auth.currentUser != null;
 
+  // Debug callback
+  Function(String)? onDebugMessage;
+
+  void setDebugCallback(Function(String) callback) {
+    onDebugMessage = callback;
+  }
+
+  void _debug(String message) {
+    print('AuthService: $message');
+    onDebugMessage?.call(message);
+  }
+
   // Check if user is in guest mode
   Future<bool> isGuestMode() async {
     final prefs = await SharedPreferences.getInstance();
@@ -19,6 +31,7 @@ class AuthService {
   Future<void> setGuestMode(bool isGuest) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('guest_mode', isGuest);
+    _debug('Guest mode set to: $isGuest');
   }
 
   // Track registration prompts
@@ -44,9 +57,10 @@ class AuthService {
     final promptCount = prefs.getInt('registration_prompt_count') ?? 0;
     await prefs.setInt('last_registration_prompt', DateTime.now().millisecondsSinceEpoch);
     await prefs.setInt('registration_prompt_count', promptCount + 1);
+    _debug('Registration prompt recorded. Count: ${promptCount + 1}');
   }
 
-  // Register user
+  // Register user and backup local data
   Future<String?> registerUser({
     required String email,
     required String password,
@@ -55,11 +69,13 @@ class AuthService {
     required String year,
   }) async {
     try {
+      _debug('Starting user registration...');
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
+      _debug('Firebase account created, saving profile...');
       // Store user profile in Firestore
       await _firestore.collection('users').doc(credential.user!.uid).set({
         'name': name,
@@ -70,56 +86,74 @@ class AuthService {
       });
 
       await setGuestMode(false);
+      _debug('Registration completed successfully');
+      
+      // Note: Local data backup will be handled by DataService in splash screen
       return null; // Success
     } on FirebaseAuthException catch (e) {
+      _debug('Registration error: ${e.message}');
       return e.message;
     } catch (e) {
+      _debug('Registration error: $e');
       return 'An error occurred during registration';
     }
   }
 
-  // Login user
+  // Login user and sync data
   Future<String?> loginUser({
     required String email,
     required String password,
   }) async {
     try {
+      _debug('Starting user login...');
       await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+      
       await setGuestMode(false);
+      _debug('Login completed successfully');
+      
+      // Note: Data sync will be handled by DataService in splash screen
       return null; // Success
     } on FirebaseAuthException catch (e) {
+      _debug('Login error: ${e.message}');
       return e.message;
     } catch (e) {
+      _debug('Login error: $e');
       return 'An error occurred during login';
     }
   }
 
   // Logout user
   Future<void> logout() async {
+    _debug('Logging out user...');
     await _auth.signOut();
     await setGuestMode(true);
+    _debug('User logged out successfully');
   }
 
   // Get available years from Firebase (admin managed)
   Future<List<String>> getAvailableYears(String studentType) async {
     try {
+      _debug('Fetching available years for $studentType...');
       final doc = await _firestore.collection('app_config').doc('student_years').get();
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
         final years = List<String>.from(data[studentType.toLowerCase()] ?? []);
+        _debug('Found ${years.length} years for $studentType');
         return years;
       }
       
       // Default years if not found in Firebase
+      _debug('Using default years for $studentType');
       if (studentType.toLowerCase() == 'a/l student') {
         return ['2024', '2025', '2026'];
       } else {
         return ['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11'];
       }
     } catch (e) {
+      _debug('Error fetching years, using defaults: $e');
       // Return default years on error
       if (studentType.toLowerCase() == 'a/l student') {
         return ['2024', '2025', '2026'];
@@ -134,9 +168,15 @@ class AuthService {
     if (!isLoggedIn) return null;
     
     try {
+      _debug('Fetching user profile...');
       final doc = await _firestore.collection('users').doc(currentUser!.uid).get();
-      return doc.data();
+      if (doc.exists) {
+        _debug('User profile fetched successfully');
+        return doc.data();
+      }
+      return null;
     } catch (e) {
+      _debug('Error fetching user profile: $e');
       return null;
     }
   }
