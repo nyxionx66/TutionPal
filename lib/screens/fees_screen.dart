@@ -3,9 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/tution_class.dart';
 import '../models/payment.dart';
 import '../services/data_service.dart';
-import '../services/notification_service_simple.dart';
-import 'timetable_screen.dart';
+import '../services/notification_service.dart';
 import 'home_screen.dart';
+import 'timetable_screen.dart';
+import 'profile_screen.dart';
 
 class FeesScreen extends StatefulWidget {
   final List<TutionClass> classes;
@@ -168,7 +169,7 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
     if (index == 0) {
       // Navigate to Home
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(builder: (context) => HomeScreen()),
         (route) => false,
       );
     } else if (index == 1) {
@@ -181,7 +182,14 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
         ),
       );
     } else if (index == 3) {
-      // Profile - can be implemented later
+      // Navigate to Profile
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => ProfileScreen(
+            onNavigate: widget.onNavigate,
+          ),
+        ),
+      );
     }
     // For fees/courses (index 2), do nothing as we're already here
   }

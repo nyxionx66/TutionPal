@@ -3,9 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/tution_class.dart';
 import '../services/data_service.dart';
 import '../services/auth_service.dart';
+import '../services/study_timer_service.dart';
+import '../widgets/study_timer_widget.dart';
 import 'add_class_screen.dart';
 import 'fees_screen.dart';
 import 'timetable_screen.dart';
+import 'profile_screen.dart';
 import 'login_screen.dart';
 
 class HomeData {
@@ -27,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _selectedIndex = 0;
   final DataService _dataService = DataService();
   final AuthService _authService = AuthService();
+  final StudyTimerService _studyTimerService = StudyTimerService();
 
   late Future<HomeData> _homeDataFuture;
   late AnimationController _animationController;
@@ -85,6 +89,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<HomeData> _initializeData() async {
     await _dataService.initializeHive();
+    await _studyTimerService.initialize();
 
     final classes = _dataService.getAllClasses();
     final isGuest = await _authService.isGuestMode();
@@ -276,8 +281,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _selectedIndex = 0;
         });
       });
+    } else if (index == 3) {
+      // Navigate to Profile
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfileScreen(
+            onNavigate: (tappedIndex) {
+              setState(() {
+                _selectedIndex = tappedIndex;
+              });
+            },
+          ),
+        ),
+      ).then((_) {
+        setState(() {
+          _selectedIndex = 0;
+        });
+      });
     }
-    // Profile (index 3) - can be implemented later
   }
 
   void _navigateToAddClass() async {
@@ -416,6 +438,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         children: [
                           _greetingCard(isGuest, userName, classes),
                           const SizedBox(height: 32),
+                          StudyTimerWidget(classes: classes),
                           _sectionHeader("Your Classes", classes.isNotEmpty),
                           const SizedBox(height: 20),
                           if (classes.isEmpty)

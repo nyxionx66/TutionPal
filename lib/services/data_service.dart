@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../models/tution_class.dart';
 import '../models/payment.dart';
+import '../models/study_session.dart';
 import 'auth_service.dart';
 
 class DataService {
@@ -14,9 +15,11 @@ class DataService {
   // Hive boxes
   late Box<TutionClass> _classesBox;
   late Box<Payment> _paymentsBox;
+  late Box<StudySession> _studySessionsBox;
   late Box<Map> _syncQueueBox;
 
   static const String paymentsBoxName = 'payments';
+  static const String studySessionsBoxName = 'study_sessions';
   static const String syncQueueBoxName = 'sync_queue';
 
   // Debug callback for splash screen
@@ -36,6 +39,7 @@ class DataService {
     try {
       _classesBox = Hive.box<TutionClass>('classes');
       _paymentsBox = Hive.box<Payment>(paymentsBoxName);
+      _studySessionsBox = Hive.box<StudySession>(studySessionsBoxName);
       _syncQueueBox = await Hive.openBox<Map>(syncQueueBoxName);
       _debug('Hive databases initialized successfully');
     } catch (e) {
@@ -133,10 +137,20 @@ class DataService {
     final classes = getAllClasses();
     _debug('Generating payments for $month $year for ${classes.length} classes');
     
+    // Only generate payments for current and past months, not future months
+    final now = DateTime.now();
+    final targetMonth = DateTime(year, _getMonthNumber(month), 1);
+    final currentMonth = DateTime(now.year, now.month, 1);
+    
+    // Don't generate payments for future months
+    if (targetMonth.isAfter(currentMonth)) {
+      _debug('Skipping payment generation for future month: $month $year');
+      return;
+    }
+    
     for (final tutionClass in classes) {
       // Only generate if the class was created before or during this month
       final classCreationMonth = DateTime(tutionClass.createdDate.year, tutionClass.createdDate.month, 1);
-      final targetMonth = DateTime(year, _getMonthNumber(month), 1);
       
       if (classCreationMonth.isBefore(targetMonth) || classCreationMonth.isAtSameMomentAs(targetMonth)) {
         // Check if payment already exists for this class and month

@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:timezone/data/latest.dart' as tz;
 import 'models/tution_class.dart';
 import 'models/payment.dart';
+import 'models/study_session.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
-import 'services/notification_service_simple.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize timezone data
+  tz.initializeTimeZones();
 
   // Initialize Hive
   await Hive.initFlutter();
@@ -16,10 +21,12 @@ void main() async {
   // Register Hive adapters
   Hive.registerAdapter(TutionClassAdapter());
   Hive.registerAdapter(PaymentAdapter()); // Register Payment adapter
+  Hive.registerAdapter(StudySessionAdapter()); // Register StudySession adapter
 
   // Open Hive boxes
   await Hive.openBox<TutionClass>('classes');
   await Hive.openBox<Payment>('payments'); // Open payments box
+  await Hive.openBox<StudySession>('study_sessions'); // Open study sessions box
 
   try {
     await Firebase.initializeApp(
@@ -29,10 +36,10 @@ void main() async {
     print('Firebase initialization error: $e');
   }
 
-  // Initialize simple notification service in background
+  // Initialize notification service in background
   try {
     NotificationService().initialize();
-    print('Simple notification service initialized');
+    print('Enhanced notification service initialized');
   } catch (e) {
     print('Notification service initialization error (ignored): $e');
     // Continue without notifications if there's an error
