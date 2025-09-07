@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/tution_class.dart';
+import '../services/data_service.dart';
 
 class AddClassScreen extends StatefulWidget {
   const AddClassScreen({super.key});
@@ -16,10 +17,12 @@ class _AddClassScreenState extends State<AddClassScreen> {
   final _teacherCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
   final _feeCtrl = TextEditingController();
+  final DataService _dataService = DataService();
 
   String _selectedDay = "Monday";
   TimeOfDay? _selectedTime;
   double _duration = 1;
+  int _selectedIndex = 0; // For bottom navigation
 
   final List<String> _days = [
     "Monday",
@@ -30,6 +33,12 @@ class _AddClassScreenState extends State<AddClassScreen> {
     "Saturday",
     "Sunday"
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _dataService.initializeHive();
+  }
 
   void _pickTime() async {
     final time = await showTimePicker(
@@ -43,14 +52,21 @@ class _AddClassScreenState extends State<AddClassScreen> {
     }
   }
 
-  void _saveClass() {
+  void _saveClass() async {
     if (_subjectCtrl.text.isEmpty ||
         _teacherCtrl.text.isEmpty ||
         _locationCtrl.text.isEmpty ||
         _selectedTime == null ||
         _feeCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please fill all fields")),
+        SnackBar(
+          content: const Text("Please fill all fields"),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
       return;
     }
@@ -65,7 +81,29 @@ class _AddClassScreenState extends State<AddClassScreen> {
       monthlyFee: double.tryParse(_feeCtrl.text) ?? 0,
     );
 
+    // Save using DataService (offline-first)
+    await _dataService.addClass(tutionClass);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text("Class added successfully! 🎉"),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+
     Navigator.pop(context, tutionClass);
+  }
+
+  void _onItemTapped(int index) {
+    if (index == 0) {
+      // Navigate back to home
+      Navigator.pop(context);
+    }
+    // Other navigation logic can be added here if needed
   }
 
   @override
@@ -77,6 +115,7 @@ class _AddClassScreenState extends State<AddClassScreen> {
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w700,
             color: Colors.black87,
+            fontSize: 18,
           ),
         ),
         centerTitle: true,
@@ -84,30 +123,136 @@ class _AddClassScreenState extends State<AddClassScreen> {
         elevation: 1,
         iconTheme: const IconThemeData(color: Colors.black87),
       ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+          child: BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            onTap: _onItemTapped,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            selectedItemColor: const Color(0xFF2A66F2),
+            unselectedItemColor: Colors.grey[400],
+            selectedLabelStyle: GoogleFonts.poppins(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+            unselectedLabelStyle: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+            items: [
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _selectedIndex == 0
+                        ? const Color(0xFF2A66F2).withOpacity(0.1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _selectedIndex == 0 ? Icons.home : Icons.home_outlined,
+                    size: 24,
+                  ),
+                ),
+                label: "Home",
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _selectedIndex == 1
+                        ? const Color(0xFF2A66F2).withOpacity(0.1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _selectedIndex == 1 ? Icons.calendar_month : Icons.calendar_month_outlined,
+                    size: 24,
+                  ),
+                ),
+                label: "Timetable",
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _selectedIndex == 2
+                        ? const Color(0xFF2A66F2).withOpacity(0.1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _selectedIndex == 2 ? Icons.account_balance_wallet : Icons.account_balance_wallet_outlined,
+                    size: 24,
+                  ),
+                ),
+                label: "Fees",
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _selectedIndex == 3
+                        ? const Color(0xFF2A66F2).withOpacity(0.1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _selectedIndex == 3 ? Icons.description : Icons.description_outlined,
+                    size: 24,
+                  ),
+                ),
+                label: "Papers",
+              ),
+            ],
+          ),
+        ),
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _inputField("Subject Name", _subjectCtrl, "e.g. Combined Mathematics"),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               _inputField("Teacher's Name", _teacherCtrl, "e.g. Mr. Perera"),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               _inputField("Location", _locationCtrl, "e.g. Colombo"),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // Day Picker
               Text("Day", style: _labelStyle()),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Wrap(
-                spacing: 10,
+                spacing: 8,
                 children: _days.map((day) {
                   final selected = _selectedDay == day;
                   return ChoiceChip(
                     label: Text(
                       day,
                       style: GoogleFonts.poppins(
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: selected ? Colors.white : Colors.black87,
                       ),
@@ -123,11 +268,11 @@ class _AddClassScreenState extends State<AddClassScreen> {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // Time Picker
               Text("Time", style: _labelStyle()),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2A66F2),
@@ -135,7 +280,7 @@ class _AddClassScreenState extends State<AddClassScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 ),
                 onPressed: _pickTime,
                 icon: const Icon(Icons.access_time),
@@ -143,14 +288,17 @@ class _AddClassScreenState extends State<AddClassScreen> {
                   _selectedTime == null
                       ? "Select Start Time"
                       : _selectedTime!.format(context),
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
               ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
               // Duration Slider
               Text("Duration (hours)", style: _labelStyle()),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Slider(
                 value: _duration,
                 min: 1,
@@ -164,12 +312,12 @@ class _AddClassScreenState extends State<AddClassScreen> {
                   });
                 },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // Monthly Fee
               _inputField("Monthly Fee (LKR)", _feeCtrl, "e.g. 2500",
                   inputType: TextInputType.number),
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
 
               // Save Button
               SizedBox(
@@ -178,7 +326,7 @@ class _AddClassScreenState extends State<AddClassScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -187,12 +335,15 @@ class _AddClassScreenState extends State<AddClassScreen> {
                   child: Text(
                     "Save Class",
                     style: GoogleFonts.poppins(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
               ),
+              
+              // Extra space for bottom navigation
+              const SizedBox(height: 80),
             ],
           ),
         ),
@@ -207,7 +358,7 @@ class _AddClassScreenState extends State<AddClassScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: _labelStyle()),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         TextField(
           controller: ctrl,
           keyboardType: inputType,
@@ -216,6 +367,7 @@ class _AddClassScreenState extends State<AddClassScreen> {
             hintText: hint,
             hintStyle: GoogleFonts.poppins(
               color: Colors.grey,
+              fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
             filled: true,
@@ -233,7 +385,7 @@ class _AddClassScreenState extends State<AddClassScreen> {
 
   TextStyle _labelStyle() {
     return GoogleFonts.poppins(
-      fontSize: 15,
+      fontSize: 14,
       fontWeight: FontWeight.w700,
       color: Colors.black87,
     );

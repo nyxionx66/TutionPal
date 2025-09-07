@@ -19,8 +19,18 @@ class _FeesScreenState extends State<FeesScreen> {
   int _selectedIndex = 2; // Fees tab is selected
 
   final List<String> months = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
   ];
 
   @override
@@ -30,15 +40,17 @@ class _FeesScreenState extends State<FeesScreen> {
   }
 
   void _generatePayments() {
-    payments = widget.classes.map((tClass) {
+    payments = widget.classes.asMap().entries.map((entry) {
+      final index = entry.key;
+      final tClass = entry.value;
       return Payment(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: DateTime.now().millisecondsSinceEpoch.toString() + index.toString(),
         classId: tClass.subject,
         subject: tClass.subject,
         teacher: tClass.teacher,
         amount: tClass.monthlyFee,
         paymentDate: DateTime.now(),
-        isPaid: DateTime.now().millisecondsSinceEpoch % 3 == 0, // Random paid status
+        isPaid: index % 2 == 0, // Alternate paid status for demo
       );
     }).toList();
   }
@@ -71,7 +83,7 @@ class _FeesScreenState extends State<FeesScreen> {
   }
 
   void _onItemTapped(int index) {
-    if (index != 2) { // If not fees tab
+    if (index != 2) {
       if (widget.onNavigate != null) {
         widget.onNavigate!(index);
       }
@@ -102,30 +114,28 @@ class _FeesScreenState extends State<FeesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Outstanding Balance Card
             _outstandingBalanceCard(),
-
             const SizedBox(height: 24),
-
-            // Monthly Summary
             _monthlySummaryCard(),
-
             const SizedBox(height: 32),
 
-            // Payment History Header
+            // 🔧 FIXED HEADER ROW
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Payment History",
-                  style: GoogleFonts.poppins(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.black87,
+                Expanded(
+                  child: Text(
+                    "Payment History",
+                    style: GoogleFonts.poppins(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -152,7 +162,8 @@ class _FeesScreenState extends State<FeesScreen> {
                           selectedMonth = value!;
                         });
                       },
-                      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                      icon: const Icon(Icons.keyboard_arrow_down,
+                          color: Colors.grey),
                     ),
                   ),
                 ),
@@ -161,13 +172,12 @@ class _FeesScreenState extends State<FeesScreen> {
 
             const SizedBox(height: 20),
 
-            // Payment List
             if (payments.isEmpty)
               _emptyPaymentsWidget()
             else
               ...payments.map((payment) => _paymentCard(payment)).toList(),
 
-            const SizedBox(height: 100), // Space for FAB
+            const SizedBox(height: 100),
           ],
         ),
       ),
@@ -186,9 +196,9 @@ class _FeesScreenState extends State<FeesScreen> {
           backgroundColor: const Color(0xFF2A66F2),
           elevation: 0,
           onPressed: () {
-            // TODO: Implement record payment functionality
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Record Payment feature coming soon!")),
+              const SnackBar(
+                  content: Text("Record Payment feature coming soon!")),
             );
           },
           icon: const Icon(Icons.add, color: Colors.white, size: 24),
@@ -266,7 +276,9 @@ class _FeesScreenState extends State<FeesScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    _selectedIndex == 1 ? Icons.calendar_month : Icons.calendar_month_outlined,
+                    _selectedIndex == 1
+                        ? Icons.calendar_month
+                        : Icons.calendar_month_outlined,
                     size: 24,
                   ),
                 ),
@@ -282,7 +294,9 @@ class _FeesScreenState extends State<FeesScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    _selectedIndex == 2 ? Icons.account_balance_wallet : Icons.account_balance_wallet_outlined,
+                    _selectedIndex == 2
+                        ? Icons.account_balance_wallet
+                        : Icons.account_balance_wallet_outlined,
                     size: 24,
                   ),
                 ),
@@ -298,7 +312,9 @@ class _FeesScreenState extends State<FeesScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    _selectedIndex == 3 ? Icons.description : Icons.description_outlined,
+                    _selectedIndex == 3
+                        ? Icons.description
+                        : Icons.description_outlined,
                     size: 24,
                   ),
                 ),
@@ -314,7 +330,7 @@ class _FeesScreenState extends State<FeesScreen> {
   Widget _outstandingBalanceCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -331,16 +347,16 @@ class _FeesScreenState extends State<FeesScreen> {
           Text(
             "Total Outstanding Balance",
             style: GoogleFonts.poppins(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Colors.grey[600],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             "LKR ${totalOutstanding.toStringAsFixed(2)}",
             style: GoogleFonts.poppins(
-              fontSize: 42,
+              fontSize: 32,
               fontWeight: FontWeight.w800,
               color: const Color(0xFF2A66F2),
             ),
@@ -352,7 +368,7 @@ class _FeesScreenState extends State<FeesScreen> {
 
   Widget _monthlySummaryCard() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -373,16 +389,16 @@ class _FeesScreenState extends State<FeesScreen> {
                 Text(
                   "This Month's Fees",
                   style: GoogleFonts.poppins(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[600],
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   "LKR ${totalThisMonth.toStringAsFixed(0)}",
                   style: GoogleFonts.poppins(
-                    fontSize: 22,
+                    fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: Colors.black87,
                   ),
@@ -391,11 +407,11 @@ class _FeesScreenState extends State<FeesScreen> {
             ),
           ),
           Container(
-            height: 60,
+            height: 50,
             width: 1,
             color: Colors.grey[300],
           ),
-          const SizedBox(width: 24),
+          const SizedBox(width: 18),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -403,16 +419,16 @@ class _FeesScreenState extends State<FeesScreen> {
                 Text(
                   "Payments Made",
                   style: GoogleFonts.poppins(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[600],
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   "LKR ${totalPaid.toStringAsFixed(0)}",
                   style: GoogleFonts.poppins(
-                    fontSize: 22,
+                    fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: Colors.green,
                   ),
@@ -425,10 +441,11 @@ class _FeesScreenState extends State<FeesScreen> {
     );
   }
 
+  // 🔧 FIXED PAYMENT CARD
   Widget _paymentCard(Payment payment) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -441,26 +458,24 @@ class _FeesScreenState extends State<FeesScreen> {
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Status Icon
           Container(
-            width: 50,
-            height: 50,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: payment.isPaid
                   ? Colors.green.withOpacity(0.1)
                   : Colors.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(
               payment.isPaid ? Icons.check : Icons.schedule,
               color: payment.isPaid ? Colors.green : Colors.orange,
-              size: 24,
+              size: 20,
             ),
           ),
-          const SizedBox(width: 16),
-
-          // Class Info
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,26 +483,28 @@ class _FeesScreenState extends State<FeesScreen> {
                 Text(
                   payment.subject,
                   style: GoogleFonts.poppins(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: Colors.black87,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   payment.teacher,
                   style: GoogleFonts.poppins(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[600],
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (payment.isPaid) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     "Paid on Oct ${payment.paymentDate.day}",
                     style: GoogleFonts.poppins(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: Colors.grey[500],
                     ),
@@ -496,33 +513,36 @@ class _FeesScreenState extends State<FeesScreen> {
               ],
             ),
           ),
-
-          // Amount and Action
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                "LKR ${payment.amount.toStringAsFixed(0)}",
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: payment.isPaid ? Colors.green : Colors.orange,
+          const SizedBox(width: 12),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  "LKR ${payment.amount.toStringAsFixed(0)}",
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: payment.isPaid ? Colors.green : Colors.orange,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(height: 8),
-              if (!payment.isPaid)
-                GestureDetector(
-                  onTap: () => _togglePaymentStatus(payment),
-                  child: Text(
-                    "Mark as Paid",
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF2A66F2),
+                const SizedBox(height: 6),
+                if (!payment.isPaid)
+                  GestureDetector(
+                    onTap: () => _togglePaymentStatus(payment),
+                    child: Text(
+                      "Mark as Paid",
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF2A66F2),
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -532,7 +552,7 @@ class _FeesScreenState extends State<FeesScreen> {
   Widget _emptyPaymentsWidget() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -548,19 +568,19 @@ class _FeesScreenState extends State<FeesScreen> {
         children: [
           Icon(
             Icons.account_balance_wallet_outlined,
-            size: 64,
+            size: 48,
             color: Colors.grey[400],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
             "No Payment Records",
             style: GoogleFonts.poppins(
-              fontSize: 22,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             "Add some tuition classes to see payment records",
             style: GoogleFonts.poppins(
