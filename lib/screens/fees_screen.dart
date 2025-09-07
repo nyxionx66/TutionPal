@@ -3,6 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/tution_class.dart';
 import '../models/payment.dart';
 import '../services/data_service.dart';
+import '../services/notification_service_simple.dart';
+import 'timetable_screen.dart';
+import 'home_screen.dart';
 
 class FeesScreen extends StatefulWidget {
   final List<TutionClass> classes;
@@ -15,10 +18,11 @@ class FeesScreen extends StatefulWidget {
 }
 
 class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
-  String selectedMonth = "October";
+  late String selectedMonth;
   List<Payment> payments = [];
   int _selectedIndex = 2; // Courses tab is selected (where fees are now)
   final DataService _dataService = DataService();
+  final NotificationService _notificationService = NotificationService();
   
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -32,6 +36,8 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    // Set current month dynamically
+    selectedMonth = _dataService.getCurrentMonth();
     _setupAnimations();
     _initializeData();
   }
@@ -62,9 +68,26 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _initializeData() async {
-    await _dataService.initializeHive();
-    await _generatePaymentsForCurrentMonth();
-    _loadPayments();
+    try {
+      await _dataService.initializeHive();
+      await _generatePaymentsForCurrentMonth();
+      _loadPayments();
+      
+      // Initialize notifications in background (don't block UI)
+      _notificationService.initialize().then((_) {
+        // Check and schedule overdue notifications after initialization
+        return _notificationService.checkAndScheduleOverdueNotifications();
+      }).catchError((e) {
+        print('Notification initialization failed in fees screen: $e');
+        // Continue without notifications
+      });
+    } catch (e) {
+      print('Error initializing fees screen data: $e');
+      // Show empty state if data loading fails
+      setState(() {
+        payments = [];
+      });
+    }
   }
 
   Future<void> _generatePaymentsForCurrentMonth() async {
@@ -73,9 +96,9 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
   }
 
   void _loadPayments() {
-    final now = DateTime.now();
     setState(() {
-      payments = _dataService.getPaymentsForMonth(selectedMonth, now.year);
+      // Use the new method that includes overdue payments from previous months
+      payments = _dataService.getPaymentsForCurrentView();
     });
   }
 
@@ -84,16 +107,28 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
   }
 
   double get totalThisMonth {
-    return payments.fold(0, (sum, p) => sum + p.amount);
+    // Only current month payments for this calculation
+    final currentMonthPayments = payments.where((p) => 
+      p.month == selectedMonth && p.year == _dataService.getCurrentYear()).toList();
+    return currentMonthPayments.fold(0, (sum, p) => sum + p.amount);
   }
 
   double get totalPaid {
     return payments.where((p) => p.isPaid).fold(0, (sum, p) => sum + p.amount);
   }
 
+  double get totalOverdue {
+    final now = DateTime.now();
+    return payments.where((p) => !p.isPaid && p.dueDate.isBefore(now))
+        .fold(0, (sum, p) => sum + p.amount);
+  }
+
   Future<void> _togglePaymentStatus(Payment payment) async {
     await _dataService.updatePaymentStatus(payment.id, !payment.isPaid);
     _loadPayments(); // Reload to reflect changes
+    
+    // Update notifications after payment status change
+    await _notificationService.checkAndScheduleOverdueNotifications();
     
     // Show feedback with animation
     ScaffoldMessenger.of(context).showSnackBar(
@@ -110,7 +145,7 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
               child: Text(
                 payment.isPaid 
                     ? "Payment marked as unpaid" 
-                    : "Payment marked as paid! 🎉",
+                    : "Payment marked as paid!",
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
@@ -130,12 +165,25 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
   }
 
   void _onItemTapped(int index) {
-    if (index != 2) {
-      if (widget.onNavigate != null) {
-        widget.onNavigate!(index);
-      }
-      Navigator.pop(context);
+    if (index == 0) {
+      // Navigate to Home
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        (route) => false,
+      );
+    } else if (index == 1) {
+      // Navigate to Timetable
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => TimetableScreen(
+            onNavigate: widget.onNavigate,
+          ),
+        ),
+      );
+    } else if (index == 3) {
+      // Profile - can be implemented later
     }
+    // For fees/courses (index 2), do nothing as we're already here
   }
 
   Future<void> _onMonthChanged(String? newMonth) async {
@@ -190,6 +238,7 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
           ),
           onPressed: () => Navigator.pop(context),
         ),
+        // Temporarily removed notification button while notifications are disabled
       ),
       body: AnimatedBuilder(
         animation: _animationController,
@@ -245,28 +294,38 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildInfoCard() {
+    final overdueCount = payments.where((p) => !p.isPaid && p.isOverdue).length;
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.blue[50]!, Colors.green[50]!],
+          colors: overdueCount > 0 
+              ? [Colors.orange[50]!, Colors.red[50]!]
+              : [Colors.blue[50]!, Colors.green[50]!],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2A66F2).withOpacity(0.2)),
+        border: Border.all(
+          color: overdueCount > 0 
+              ? Colors.orange[200]!
+              : const Color(0xFF2A66F2).withOpacity(0.2)
+        ),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF2A66F2).withOpacity(0.1),
+              color: overdueCount > 0 
+                  ? Colors.orange[100]
+                  : const Color(0xFF2A66F2).withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
-              Icons.info_outline,
-              color: Color(0xFF2A66F2),
+            child: Icon(
+              overdueCount > 0 ? Icons.warning_outlined : Icons.info_outline,
+              color: overdueCount > 0 ? Colors.orange[600] : const Color(0xFF2A66F2),
               size: 20,
             ),
           ),
@@ -276,20 +335,24 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "How Monthly Fees Work",
+                  overdueCount > 0 
+                      ? "Overdue Payments Found!"
+                      : "How Monthly Fees Work",
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    color: overdueCount > 0 ? Colors.orange[800] : Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "Fees are due from 1st to last day of each month. Payments start from the month you added each class.",
+                  overdueCount > 0
+                      ? "You have $overdueCount overdue payments from previous months. Please pay them as soon as possible."
+                      : "Fees are due from 1st to last day of each month. Overdue payments from previous months are shown here.",
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: Colors.grey[700],
+                    color: overdueCount > 0 ? Colors.orange[700] : Colors.grey[700],
                     height: 1.3,
                   ),
                 ),
@@ -302,19 +365,24 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
   }
 
   Widget _outstandingBalanceCard() {
+    final overdueAmount = totalOverdue;
+    final hasOverdue = overdueAmount > 0;
+    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2A66F2), Color(0xFF4A90E2)],
+        gradient: LinearGradient(
+          colors: hasOverdue 
+              ? [Colors.red[600]!, Colors.red[700]!]
+              : [const Color(0xFF2A66F2), const Color(0xFF4A90E2)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2A66F2).withOpacity(0.3),
+            color: (hasOverdue ? Colors.red[600]! : const Color(0xFF2A66F2)).withOpacity(0.3),
             blurRadius: 15,
             offset: const Offset(0, 6),
           ),
@@ -330,8 +398,8 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
-                  Icons.account_balance_wallet,
+                child: Icon(
+                  hasOverdue ? Icons.warning : Icons.account_balance_wallet,
                   color: Colors.white,
                   size: 20,
                 ),
@@ -342,7 +410,7 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Outstanding Balance",
+                      hasOverdue ? "Total Outstanding" : "Outstanding Balance",
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -358,6 +426,15 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
                         color: Colors.white,
                       ),
                     ),
+                    if (hasOverdue)
+                      Text(
+                        "Including LKR ${overdueAmount.toStringAsFixed(0)} overdue",
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -403,12 +480,31 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
           ),
           Expanded(
             child: _summaryItem(
-              title: "Paid",
+              title: "Total Paid",
               amount: totalPaid,
               color: Colors.green[600]!,
               icon: Icons.check_circle,
             ),
           ),
+          if (totalOverdue > 0) ...[
+            Container(
+              height: 40,
+              width: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+            Expanded(
+              child: _summaryItem(
+                title: "Overdue",
+                amount: totalOverdue,
+                color: Colors.red[600]!,
+                icon: Icons.warning,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -457,13 +553,26 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
     return Row(
       children: [
         Expanded(
-          child: Text(
-            "Payment History",
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: Colors.black87,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Payment History",
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black87,
+                ),
+              ),
+              Text(
+                "Current month + overdue payments",
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
           ),
         ),
         Container(
@@ -511,9 +620,16 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
 
   Widget _paymentCard(Payment payment) {
     final isOverdue = payment.isOverdue;
-    final statusColor = payment.isPaid 
-        ? Colors.green[600]! 
-        : (isOverdue ? Colors.red[600]! : const Color(0xFFFFB800));
+    final isFromPreviousMonth = payment.month != selectedMonth || payment.year != _dataService.getCurrentYear();
+    
+    Color statusColor;
+    if (payment.isPaid) {
+      statusColor = Colors.green[600]!;
+    } else if (isOverdue) {
+      statusColor = Colors.red[600]!;
+    } else {
+      statusColor = const Color(0xFFFFB800);
+    }
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -521,8 +637,10 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: isOverdue && !payment.isPaid 
-            ? Border.all(color: Colors.red[300]!, width: 1)
-            : null,
+            ? Border.all(color: Colors.red[300]!, width: 2)
+            : (isFromPreviousMonth && !payment.isPaid
+                ? Border.all(color: Colors.orange[300]!, width: 1)
+                : null),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -560,15 +678,37 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        payment.subject,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              payment.subject,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isFromPreviousMonth)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.orange[100],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                "${payment.month} ${payment.year}",
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.orange[700],
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -586,8 +726,8 @@ class _FeesScreenState extends State<FeesScreen> with TickerProviderStateMixin {
                         payment.isPaid 
                             ? "Paid on ${payment.paymentDate.day}/${payment.paymentDate.month}"
                             : (isOverdue 
-                                ? "Overdue since ${payment.dueDate.day}/${payment.dueDate.month}"
-                                : "Due by ${payment.dueDate.day}/${payment.dueDate.month}"),
+                                ? "Overdue since ${payment.dueDate.day}/${payment.dueDate.month}/${payment.dueDate.year}"
+                                : "Due by ${payment.dueDate.day}/${payment.dueDate.month}/${payment.dueDate.year}"),
                         style: GoogleFonts.poppins(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,

@@ -16,31 +16,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<OnboardingPage> _pages = [
     OnboardingPage(
-      title: "Welcome to Tution Pal! 👋",
+      title: "Welcome to Tution Pal!",
       description: "Your personal assistant for managing tuition classes, fees, and studies in Sri Lanka.",
       icon: Icons.school_outlined,
       color: Color(0xFF2A66F2),
     ),
     OnboardingPage(
-      title: "Add Your Classes 📚",
+      title: "Add Your Classes",
       description: "Add all your tuition classes with teacher details, location, and monthly fees. The app will track everything for you!",
       icon: Icons.add_circle_outline,
       color: Color(0xFFFFB800),
     ),
     OnboardingPage(
-      title: "Track Weekly Schedule 📅",
+      title: "Track Weekly Schedule",
       description: "View your weekly timetable with all classes organized by day. Never miss a class again!",
       icon: Icons.calendar_month_outlined,
       color: Color(0xFF4CAF50),
     ),
     OnboardingPage(
-      title: "Manage Monthly Fees 💰",
-      description: "Fee payments are tracked monthly (1st to last day). Payments start from the month you add each class. Mark payments as paid to keep track!",
+      title: "Manage Monthly Fees",
+      description: "Fee payments are tracked monthly from 1st to last day. Payments start from the month you add each class. Mark payments as paid to keep track!",
       icon: Icons.account_balance_wallet_outlined,
       color: Color(0xFFFF5722),
     ),
     OnboardingPage(
-      title: "Cloud Backup 🔄",
+      title: "Cloud Backup",
       description: "Register to backup your data to the cloud. Your classes and payments will be safe even if you change phones!",
       icon: Icons.cloud_upload_outlined,
       color: Color(0xFF9C27B0),
@@ -71,7 +71,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Skip button
+            // Skip button and indicators
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -190,11 +190,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _buildPage(OnboardingPage page) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          const SizedBox(height: 40),
+          
           // Icon
           Container(
             width: 120,
@@ -250,14 +252,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           if (page.icon == Icons.account_balance_wallet_outlined)
             Container(
               padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
                 color: Colors.orange[50],
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.orange[200]!),
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
                         Icons.lightbulb_outline,
@@ -265,12 +270,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         size: 20,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        "How Monthly Fees Work:",
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.orange[800],
+                      Expanded(
+                        child: Text(
+                          "How Monthly Fees Work:",
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.orange[800],
+                          ),
                         ),
                       ),
                     ],
@@ -288,6 +295,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ],
               ),
             ),
+          
+          const SizedBox(height: 40),
         ],
       ),
     );

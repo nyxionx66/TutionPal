@@ -5,6 +5,7 @@ import 'models/tution_class.dart';
 import 'models/payment.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
+import 'services/notification_service_simple.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +27,15 @@ void main() async {
     );
   } catch (e) {
     print('Firebase initialization error: $e');
+  }
+
+  // Initialize simple notification service in background
+  try {
+    NotificationService().initialize();
+    print('Simple notification service initialized');
+  } catch (e) {
+    print('Notification service initialization error (ignored): $e');
+    // Continue without notifications if there's an error
   }
 
   runApp(const TutionPalApp());

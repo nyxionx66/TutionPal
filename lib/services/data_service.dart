@@ -80,7 +80,7 @@ class DataService {
     }
   }
 
-  // PAYMENT OPERATIONS - SIMPLIFIED AND CLEARER
+  // PAYMENT OPERATIONS - ENHANCED WITH OVERDUE HANDLING
   Future<void> _generatePaymentsFromCreationDate(TutionClass tutionClass) async {
     final now = DateTime.now();
     final creationDate = tutionClass.createdDate;
@@ -180,6 +180,36 @@ class DataService {
         .toList();
   }
 
+  // NEW: Get payments for current month INCLUDING overdue from previous months
+  List<Payment> getPaymentsForCurrentView() {
+    final now = DateTime.now();
+    final currentMonth = _getMonthName(now.month);
+    final currentYear = now.year;
+    
+    // Get current month payments
+    final currentMonthPayments = getPaymentsForMonth(currentMonth, currentYear);
+    
+    // Get all overdue payments from previous months
+    final overduePayments = getOverduePayments();
+    
+    // Combine them, avoiding duplicates
+    final allPayments = <Payment>[];
+    allPayments.addAll(currentMonthPayments);
+    
+    for (final overduePayment in overduePayments) {
+      // Only add if not already in current month payments
+      final isDuplicate = currentMonthPayments.any((p) => p.id == overduePayment.id);
+      if (!isDuplicate) {
+        allPayments.add(overduePayment);
+      }
+    }
+    
+    // Sort by due date (oldest first)
+    allPayments.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+    
+    return allPayments;
+  }
+
   List<Payment> getOverduePayments() {
     final now = DateTime.now();
     return _paymentsBox.values
@@ -187,9 +217,33 @@ class DataService {
         .toList();
   }
 
+  // Get current month name dynamically
+  String getCurrentMonth() {
+    final now = DateTime.now();
+    return _getMonthName(now.month);
+  }
+
+  int getCurrentYear() {
+    return DateTime.now().year;
+  }
+
   // Get real fee progress data
   Map<String, double> getFeeProgress() {
     final payments = getAllPayments();
+    final totalFees = payments.fold(0.0, (sum, payment) => sum + payment.amount);
+    final paidFees = payments.where((p) => p.isPaid).fold(0.0, (sum, payment) => sum + payment.amount);
+    
+    return {
+      'total': totalFees,
+      'paid': paidFees,
+      'outstanding': totalFees - paidFees,
+      'progress': totalFees > 0 ? paidFees / totalFees : 0.0,
+    };
+  }
+
+  // Get fee progress for current view (including overdue)
+  Map<String, double> getCurrentViewFeeProgress() {
+    final payments = getPaymentsForCurrentView();
     final totalFees = payments.fold(0.0, (sum, payment) => sum + payment.amount);
     final paidFees = payments.where((p) => p.isPaid).fold(0.0, (sum, payment) => sum + payment.amount);
     
